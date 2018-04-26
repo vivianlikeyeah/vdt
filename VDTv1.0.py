@@ -189,7 +189,7 @@ def output(outputFile):
 
 
 
-	showFile(outputFile)
+	#showFile(outputFile)
 
 
 	with warnings.catch_warnings():
