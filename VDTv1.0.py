@@ -12,6 +12,18 @@ from skimage import img_as_uint
 import warnings
 from PIL import Image
 import argparse
+import cv2
+import SimpleITK as sitk
+import sys
+import os
+from math import pi
+
+import glob
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+import re 
 
 
 types = {'png': 'png', 'tiff': 'tif', 'jpeg': 'jpg'}
@@ -50,7 +62,7 @@ def denoise (inputFile):
 
 	start = time.time()
 
-	F = ptv.tv1_2d(inputFile, args.lamb)
+	F = ptv.tv1_2d(inputFile, args.lamb, 1, 3)
 
 	end = time.time()
 
@@ -61,31 +73,75 @@ def denoiseManual(inputFile,lamb):
 
 	start = time.time()
 
-	F = ptv.tv1_2d(inputFile, lamb)
+	F = ptv.tv1_2d(inputFile, lamb, 1, 3)
 
 	end = time.time()
 
 	print('Time elapsed ' + str(end-start))
 	return F 
 
+def denoiseAutomated(inputFile):
+	print("Start Automated Denoising")
+
+	fileToDenoise = inputFile
+
+	for x in np.arange(0,0.5,0.001):
+		print x
+		step = denoiseManual(fileToDenoise,x)
+		name = "Oddstep" + str(x) + ".png"
+		io.imsave(str(name), step)
+		fileToDenoise = step 
+		#print x
+
 
 def showFile(file):
 
-	print("Show File Function Called")
-	#Might be good to include the original as well!
-	print("Showing original file")
-	plt.imshow(file)
-	io.show()
+	print("Show file function!")
 
-	print("Showing weird figure")
+	#io.imshow(file)
+	#plt.show()
 
-	fig=plt.figure(figsize=(14, 4))
-	columns = 3
-	rows = 1
-	for i in range(1, columns*rows +1):
-		fig.add_subplot(rows, columns, i)
-		io.imshow(file)
-	plt.show()
+	with warnings.catch_warnings():
+		warnings.simplefilter("ignore")
+		out = img_as_uint(file)
+	
+	
+	outname = outfileName()
+
+	#You need to save the image you want to see 
+
+	io.imsave(str(outname), out)
+	
+
+
+	img = cv2.imread(str(outname),0)
+	imS = cv2.resize(img, (700, 760))  
+	cv2.namedWindow('showfile', cv2.WINDOW_NORMAL)
+	cv2.moveWindow('showfile', 05,20);
+	cv2.imshow('showfile',imS)
+	#cv2.waitKey(0) #closes after a key press 
+	#cv2.destroyAllWindows()
+
+	imgOriginal = cv2.imread(args.file,0)
+	imOriginal = cv2.resize(imgOriginal,(700,760))
+	cv2.namedWindow('original image', cv2.WINDOW_NORMAL)
+	cv2.moveWindow('original image', 710,20)
+	cv2.imshow('original image', imOriginal)
+	cv2.waitKey(0)
+	cv2.destroyAllWindows()
+
+
+	#image = Image.open("tempfile.png")
+	#image.show()
+
+
+	#fig=plt.figure(figsize=(14, 4))
+	#columns = 3
+	#rows = 1
+	#for i in range(1, columns*rows +1):
+	#	fig.add_subplot(rows, columns, i)
+	#	io.imshow(file)
+	#plt.show()
 
 def denoiseManualIteration(inputFile,lamb):
 
@@ -95,15 +151,15 @@ def denoiseManualIteration(inputFile,lamb):
 	userIsNotHappy = True 
 
 	print("Before denoise manual")
+	
 	image = inputFile
-	showFile(inputFile)
+	#showFile(inputFile)
 
 	while userIsNotHappy:
 
-		showFile(image)
-
 		image = denoiseManual(inputFile, lamb)
-		showFile(image)
+		#showFile(image)
+		#showFile(inputFile)
 		happiness = raw_input("Are you happy though? ")
 
 		if happiness == "Yes":
@@ -128,8 +184,13 @@ def denoiseManualIteration(inputFile,lamb):
 #File Output
 def output(outputFile):
 
-	io.imshow(outputFile)
-	plt.show()
+	#io.imshow(outputFile)
+	#plt.show()
+
+
+
+	showFile(outputFile)
+
 
 	with warnings.catch_warnings():
 		warnings.simplefilter("ignore")
@@ -137,9 +198,21 @@ def output(outputFile):
 	
 	outname = outfileName()
 
-
-
 	io.imsave(str(outname), out)
+
+	#image = Image.open(str(outname))
+	#image.show()
+
+	# Load an color image in grayscale
+	#img = cv2.imread(str(outname),0)
+	#imS = cv2.resize(img, (700, 760))  
+	#cv2.namedWindow('image', cv2.WINDOW_NORMAL)
+	#cv2.moveWindow("image", 50,50);
+	#cv2.imshow('image',imS)
+	#cv2.waitKey(0) #closes after a key press 
+	#cv2.destroyAllWindows()
+
+
 	#img = Image.fromarray(outputFile)
 	#img.save("save",getFileType(sys.argv[1]))
 
@@ -147,40 +220,17 @@ def output(outputFile):
 
 def outfileName():
 
-	#here = os.path.dirname(os.path.abspath(__file__))
-	#filepath = here + "/" + sys.argv[1]
-	#filetype = imghdr.what(filepath)
-	#print(filetype)
 
 	filetype = getFileType(args.file)
 
 	fileExtension = filetypeConversions(filetype)
 	outfileName = "outtathisworld." + fileExtension
 
-	#We have to figure out how to do file type to extension
-	#Convrsions - for example - filetype tiff = tif 
-
-	#print outfileName
 	return outfileName 
 
 
 def filetypeConversions(filetype):
 
-	#Will have to increase this and essentially do a case by case 
-	#basis 
-
-	#We can probably remove these elifs now
-	#if filetype == "tiff":
-	#	extension = "tif"
-	#elif filetype == "png":
-	#	extension = "png"
-	#else:
-	#	pass
-	#	print ("Incompatible filetype")
-
-	#print("Hello")
-	#print(types[filetype])
-	#If they specify a file type, return that - otherwise do the given file type
 	if args.outfiletype: 
 		return types[args.outfiletype]
 	else: 
@@ -209,7 +259,7 @@ if __name__ == "__main__":
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--file", help = "The file you want to denoise")
-	parser.add_argument("--lamb", help ="The lambda value for denoising", default = 0, type = float)
+	parser.add_argument("--lamb", help ="The lambda value for denoising", default = 0.1, type = float)
 	parser.add_argument('--outfiletype', help = "The output file type", type = somefunction)
 
 	args = parser.parse_args()
@@ -227,31 +277,36 @@ if __name__ == "__main__":
 		print("Soon we will add the ability to use one of our test files as default!")
 		exit(1)
 
+
+	#image = Image.open("tempfile.png")
+	#image.show()	
 	#io.imshow(newfile)
 	#plt.show()
-	image = Image.open(args.file)
-	image.show()
+	#image = Image.open(args.file)
+	#image.show()
 
 	#So it is image.show option 
 
-	print("HellloooOoo")
+	#print("HellloooOoo")
 
 
-	print(newfile)
+	#print(newfile)
 	
-	#showFile(newfile)
+	#io.imshow(newfile)
 
-	#outputFile = denoiseManualIteration(newfile,0)
-
-	io.imshow(newfile)
-
-	io.show()
+	#io.show()
 
 	#outputFile = denoise(newfile)
+
+
+	#outputFile = denoiseManualIteration(newfile, args.lamb)
 	#print(outputFile)
 	#output(outputFile)
+
+	denoiseAutomated(newfile)
 
 
 
 #this link 
 #https://github.com/InsightSoftwareConsortium/DCMTK
+
